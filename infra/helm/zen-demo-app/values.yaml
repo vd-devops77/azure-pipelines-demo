@@ -1,0 +1,21 @@
+replicaCount: 2
+
+image:
+  repository: zenshowcaseacr.azurecr.io/zen-demo-app
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 3000
+
+environment: dev
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi

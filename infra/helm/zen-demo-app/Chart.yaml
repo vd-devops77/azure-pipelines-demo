@@ -1,0 +1,6 @@
+apiVersion: v2
+name: zen-demo-app
+description: Sample chart for the Azure Pipelines CI/CD demo
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

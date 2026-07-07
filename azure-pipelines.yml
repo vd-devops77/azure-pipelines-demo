@@ -1,0 +1,108 @@
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - app/*
+      - templates/*
+      - azure-pipelines.yml
+
+pr:
+  branches:
+    include:
+      - main
+
+variables:
+  acrName: 'zenshowcaseacr'
+  imageRepository: 'zen-demo-app'
+  dockerfilePath: '$(Build.SourcesDirectory)/app/Dockerfile'
+  tag: '$(Build.BuildId)'
+  vmImageName: 'ubuntu-latest'
+
+stages:
+  - stage: Build
+    displayName: 'Build & Test'
+    jobs:
+      - job: BuildAndTest
+        pool:
+          vmImage: $(vmImageName)
+        steps:
+          - template: templates/build-test.yml
+
+  - stage: DockerPush
+    displayName: 'Docker Build & Push'
+    dependsOn: Build
+    jobs:
+      - job: BuildPushImage
+        pool:
+          vmImage: $(vmImageName)
+        steps:
+          - template: templates/docker-build-push.yml
+            parameters:
+              acrServiceConnection: 'acr-service-connection'
+              acrName: $(acrName)
+              imageRepository: $(imageRepository)
+              dockerfilePath: $(dockerfilePath)
+              tag: $(tag)
+
+  - stage: DeployDev
+    displayName: 'Deploy: dev'
+    dependsOn: DockerPush
+    jobs:
+      - deployment: DeployDev
+        environment: 'zen-demo-dev'
+        pool:
+          vmImage: $(vmImageName)
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - template: templates/deploy-aks.yml
+                  parameters:
+                    aksServiceConnection: 'aks-service-connection'
+                    namespace: 'dev'
+                    imageRepository: $(imageRepository)
+                    acrName: $(acrName)
+                    tag: $(tag)
+
+  - stage: DeployStaging
+    displayName: 'Deploy: staging'
+    dependsOn: DeployDev
+    jobs:
+      - deployment: DeployStaging
+        environment: 'zen-demo-staging'
+        pool:
+          vmImage: $(vmImageName)
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - template: templates/deploy-aks.yml
+                  parameters:
+                    aksServiceConnection: 'aks-service-connection'
+                    namespace: 'staging'
+                    imageRepository: $(imageRepository)
+                    acrName: $(acrName)
+                    tag: $(tag)
+
+  - stage: DeployProd
+    displayName: 'Deploy: prod'
+    dependsOn: DeployStaging
+    jobs:
+      - deployment: DeployProd
+        # 'zen-demo-prod' environment has a manual approval check configured in Azure DevOps
+        environment: 'zen-demo-prod'
+        pool:
+          vmImage: $(vmImageName)
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - template: templates/deploy-aks.yml
+                  parameters:
+                    aksServiceConnection: 'aks-service-connection'
+                    namespace: 'prod'
+                    imageRepository: $(imageRepository)
+                    acrName: $(acrName)
+                    tag: $(tag)

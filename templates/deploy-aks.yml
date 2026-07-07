@@ -1,0 +1,28 @@
+parameters:
+  - name: aksServiceConnection
+    type: string
+  - name: namespace
+    type: string
+  - name: imageRepository
+    type: string
+  - name: acrName
+    type: string
+  - name: tag
+    type: string
+
+steps:
+  - task: HelmDeploy@0
+    displayName: 'Helm upgrade --install to ${{ parameters.namespace }}'
+    inputs:
+      connectionType: 'Azure Resource Manager'
+      azureSubscriptionForACR: '${{ parameters.aksServiceConnection }}'
+      namespace: '${{ parameters.namespace }}'
+      command: 'upgrade'
+      chartType: 'FilePath'
+      chartPath: '$(Build.SourcesDirectory)/infra/helm/zen-demo-app'
+      releaseName: 'zen-demo-app'
+      install: true
+      arguments: >
+        --set image.repository=${{ parameters.acrName }}.azurecr.io/${{ parameters.imageRepository }}
+        --set image.tag=${{ parameters.tag }}
+        --set environment=${{ parameters.namespace }}
